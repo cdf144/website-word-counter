@@ -8,17 +8,16 @@
 #include <sstream>
 #include <unordered_set>
 
-static const std::unordered_set<std::string> SKIP_ELEMENTS = {
-    "script", "style", "noscript", "head", "meta", "link", "title"};
+static const std::unordered_set<std::string> SKIP_ELEMENTS = {"script", "style", "noscript", "head",
+                                                              "meta",   "link",  "title"};
 
 std::string WordCounter::extractTextFromHtml(const std::string& html) {
     if (html.empty()) {
         return "";
     }
 
-    const htmlDocPtr doc =
-        htmlReadMemory(html.c_str(), static_cast<int>(html.length()), nullptr,
-                       nullptr, HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+    const htmlDocPtr doc = htmlReadMemory(html.c_str(), static_cast<int>(html.length()), nullptr, nullptr,
+                                          HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
     if (!doc) {
         return "";
     }
@@ -33,8 +32,7 @@ std::string WordCounter::extractTextFromHtml(const std::string& html) {
     return result;
 }
 
-void WordCounter::extractTextRecursive(const xmlNode* node,
-                                       std::string& result) {
+void WordCounter::extractTextRecursive(const xmlNode* node, std::string& result) {
     if (!node) {
         return;
     }
@@ -81,14 +79,11 @@ std::string WordCounter::sanitizeWord(const std::string& word) {
         return "";
     }
 
-    auto start = std::find_if(word.begin(), word.end(),
-                              [](char c) { return std::isalnum(c); });
+    auto start = std::find_if(word.begin(), word.end(), [](char c) { return std::isalnum(c); });
     if (start == word.end()) {
         return "";
     }
 
-    auto end = std::find_if(word.rbegin(), word.rend(), [](char c) {
-                   return std::isalnum(c);
-               }).base();
+    auto end = std::find_if(word.rbegin(), word.rend(), [](char c) { return std::isalnum(c); }).base();
     return std::string(start, end);
 }

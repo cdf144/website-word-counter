@@ -14,8 +14,7 @@ bool isValidUrl(const std::string& url) {
     if (protocol_end == std::string::npos) {
         return false;
     }
-    if (const size_t domain_start = protocol_end + 3;
-        url.find('.', domain_start) == std::string::npos) {
+    if (const size_t domain_start = protocol_end + 3; url.find('.', domain_start) == std::string::npos) {
         return false;
     }
 

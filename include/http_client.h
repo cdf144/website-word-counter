@@ -19,8 +19,7 @@ class HTTPClient {
     CURL* curl_handle;
     bool is_initialized;
 
-    static size_t WriteCallback(void* contents, size_t size, size_t nmemb,
-                                std::string* response);
+    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* response);
 };
 
 #endif
