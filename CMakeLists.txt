@@ -9,8 +9,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(website-word-counter
     src/main.cpp
-    src/url.cpp
     src/http_client.cpp
+    src/thread_pool.cpp
+    src/url.cpp
     src/word_counter.cpp
 )
 

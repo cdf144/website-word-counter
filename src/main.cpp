@@ -1,49 +1,40 @@
-#include <future>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <utility>
+#include <thread>
 #include <vector>
 
 #include "fetch_result.h"
 #include "http_client.h"
+#include "thread_pool.h"
 #include "url.h"
 #include "word_counter.h"
 
 std::mutex cout_mut;
-std::mutex cerr_mut;
 
-void print_stdout(const std::string& message) {
+void thread_safe_cout(const std::string& message) {
     std::lock_guard<std::mutex> lock(cout_mut);
     std::cout << message;
 }
 
-void print_stderr(const std::string& message) {
-    std::lock_guard<std::mutex> lock(cerr_mut);
-    std::cerr << message;
-}
-
-std::unique_ptr<FetchResult> processUrl(const std::string& url) {
+void process_content(const std::string& url, const std::string& content,
+                     std::vector<std::unique_ptr<FetchResult>>& results, std::mutex& results_mutex) {
     auto result = std::make_unique<FetchResult>(url);
-
-    print_stdout("Fetching URL: " + url + "\n");
-    try {
-        thread_local HTTPClient client;
-
-        auto content = std::make_shared<std::string>(client.fetchUrl(url));
-        result->content = content;
-        result->word_count = WordCounter::countWords(WordCounter::extractTextFromHtml(*content));
+    if (content.empty()) {
+        result->success = false;
+        result->error_message = "Failed to fetch content or HTTP error.";
+        thread_safe_cout("Error fetching " + url + ": " + result->error_message + "\n");
+    } else {
+        result->content = std::make_shared<std::string>(content);
+        result->word_count = WordCounter::countWords(WordCounter::extractTextFromHtml(*result->content));
         result->success = true;
-
-        print_stdout("Success! URL: " + url + " Content length: " + std::to_string(content->length()) +
-                     " bytes, Word count: " + std::to_string(result->word_count) + " words\n");
-    } catch (const std::exception& e) {
-        result->error_message = e.what();
-        print_stderr("Error fetching " + url + ": " + e.what() + "\n");
+        thread_safe_cout("Success! URL: " + url + " Content length: " + std::to_string(content.length()) +
+                         " bytes, Word count: " + std::to_string(result->word_count) + " words\n");
     }
 
-    return result;
+    std::lock_guard<std::mutex> lock(results_mutex);
+    results.push_back(std::move(result));
 }
 
 int main(const int argc, char* argv[]) {
@@ -62,21 +53,28 @@ int main(const int argc, char* argv[]) {
         urls.emplace_back(argv[i]);
     }
 
-    std::vector<std::unique_ptr<FetchResult>> results;
-    results.reserve(urls.size());
-    std::vector<std::future<std::unique_ptr<FetchResult>>> futures;
-    futures.reserve(urls.size());
-    try {
-        for (const auto& url : urls) {
-            futures.push_back(std::async(std::launch::async, [url]() { return processUrl(url); }));
-        }
+    const unsigned int num_threads = std::thread::hardware_concurrency();
+    ThreadPool pool(num_threads);
+    HTTPClient client;
 
-        for (auto& future : futures) {
-            results.push_back(future.get());
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize HTTP client: " << e.what() << std::endl;
-        return 1;
+    std::vector<std::unique_ptr<FetchResult>> results;
+    std::mutex results_mutex;
+    std::atomic<size_t> tasks_done = 0;
+
+    for (const auto& url : urls) {
+        client.addRequest(url, [&](const std::string& req_url, const std::string& content) {
+            pool.enqueue(process_content, req_url, content, std::ref(results), std::ref(results_mutex));
+            tasks_done++;
+        });
+    }
+
+    thread_safe_cout("Fetching " + std::to_string(urls.size()) + " URLs using up to " + std::to_string(num_threads) +
+                     " threads...\n");
+
+    client.run();
+
+    while (tasks_done < urls.size()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     std::cout << "\nSummary:\n";
