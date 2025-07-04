@@ -4,6 +4,7 @@ bin/
 out/
 Debug/
 Release/
+.cache
 
 # C++
 # Prerequisites

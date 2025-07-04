@@ -1,8 +1,7 @@
 {
     "recommendations": [
-        "ms-vscode.cpptools",
+        "llvm-vs-code-extensions.vscode-clangd",
         "ms-vscode.cmake-tools",
-        "esbenp.prettier-vscode",
-        "xaver.clang-format"
+        "esbenp.prettier-vscode"
     ]
 }
