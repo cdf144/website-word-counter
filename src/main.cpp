@@ -19,7 +19,8 @@ void thread_safe_cout(const std::string& message) {
 }
 
 void process_content(const std::string& url, const std::string& content,
-                     std::vector<std::unique_ptr<FetchResult>>& results, std::mutex& results_mutex) {
+                     std::vector<std::unique_ptr<FetchResult>>& results, std::mutex& results_mutex,
+                     std::atomic<size_t>& tasks_done) {
     auto result = std::make_unique<FetchResult>(url);
     if (content.empty()) {
         result->success = false;
@@ -35,6 +36,7 @@ void process_content(const std::string& url, const std::string& content,
 
     std::lock_guard<std::mutex> lock(results_mutex);
     results.push_back(std::move(result));
+    tasks_done++;
 }
 
 int main(const int argc, char* argv[]) {
@@ -63,8 +65,8 @@ int main(const int argc, char* argv[]) {
 
     for (const auto& url : urls) {
         client.addRequest(url, [&](const std::string& req_url, const std::string& content) {
-            pool.enqueue(process_content, req_url, content, std::ref(results), std::ref(results_mutex));
-            tasks_done++;
+            pool.enqueue(process_content, req_url, content, std::ref(results), std::ref(results_mutex),
+                         std::ref(tasks_done));
         });
     }
 
